@@ -1,0 +1,137 @@
+---
+title: "Iowa Polling Tables"
+author: "Celia Concannon"
+date: "4/9/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(gt)
+library(readr)
+library(tidyverse)
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+iowa_poll <- read_csv("mt_1_elections-poll-ia03-3.csv")
+```
+
+##Table 1
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+iowa_poll %>%
+  mutate(partyid = case_when(
+    partyid  %in%
+                   "Democrat" ~ "Democrat",
+    partyid %in%
+                   "Republican" ~ "Republican",
+                    TRUE ~ "Other")) %>%
+  
+# This names all other responses other than "Democrat" or "Republican" as "Other"
+  
+  mutate(partyid = fct_relevel(partyid, c("Democrat",
+                                        "Republican",
+                                        "Other"))) %>% 
+  
+# I added this fct_relevel so that the order in the chart would go Democrat, Republican, Other, which I thought made the most logical sense for displaying it in a table.
+  
+  mutate(response = case_when(
+    response %in%
+                   "Dem" ~ "Democrat",
+    response %in%
+                   "Rep" ~ "Republican",
+                    TRUE ~ "Undecided")) %>%
+  
+# This mutate does the same thing as the one above for partyid, naming all other responses other than "Dem" or "Rep" as "Undecided"
+  
+  group_by(response, partyid) %>%
+  count() %>%
+  spread(partyid, n) %>%
+  ungroup() %>%
+  
+# group_by, count, spread is a typical order of functions for creating a table.
+  
+# I used an ungroup() because it does not change what we have done above and can make the table more clear when using gt.
+  
+gt %>%
+
+  tab_header(title = "3rd Congressional District in Iowa",
+             subtitle = "Response by Party Identification") %>%
+  tab_source_note(
+  source_note = "Source: New York Times Upshot/Siena Data") %>%
+  cols_label(response = "") 
+
+# gt creates a more aesthetically pleasing table and allowed me to add title, subtitle and a source note. 
+
+```
+
+
+##Table 2
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+iowa_poll %>%
+  select(ager, response, likely) %>%
+  
+# Only variables we care about from the data.
+  
+  filter(!ager == "[DO NOT READ] Refused") %>%
+  
+# Filters out an [DO NOT READ] Refused in the ager column.
+  
+  mutate(ager = case_when(
+    ager %in%
+     "18 to 34" ~ 26,
+    ager %in%
+     "35 to 49" ~ 42,
+    ager %in%
+     "50 to 64" ~ 57,
+    ager %in%
+     "65 and older" ~ 75)) %>%
+  
+# Mutates the ager age ranges so that they are represented by the midpoint of each range.
+  
+  filter(response == c("Dem", "Rep")) %>%
+  
+# Only concerned with displaying these two responses.
+  
+  filter(!likely == "[DO NOT READ] Don't know/Refused") %>%
+  
+# Filters out an [DO NOT READ]Don't know/Refused in the likely column.
+  
+  mutate(likely = fct_relevel(likely, c("Almost certain",
+                                        "Very likely",
+                                        "Somewhat likely",
+                                        "Not very likely",
+                                        "Not at all likely",
+                                        "Already voted"))) %>% 
+  
+# fct_relevel within a mutate orders the likely responses in a logical order in the table
+  
+  group_by(likely, response) %>%
+  summarize(avg_age = round(mean(ager))) %>%
+  
+# Used to get the rounded average age which will be the value displayed within the table.
+  
+  spread(key = response, value = avg_age) %>%
+  
+# Spread creates the table.
+  
+  ungroup() %>%
+  
+# I used an ungroup() because it does not change what we have done above and can make the table more clear when using gt.
+  
+gt %>%
+  tab_header(title = "Age and Reported Likelihood of Voting") %>%
+  cols_label(
+    likely = "Reported Voting",
+    Dem = "Democrat",
+    Rep = "Republican") %>%
+  
+# Names each column something that looks cleaner than the default
+  
+  tab_source_note(
+  source_note = "Source: New York Times Upshot/Siena Data") 
+
+# gt creates a more aesthetically pleasing table and allowed me to add title, subtitle and a source note, as well as change the column labels. 
+
+```
